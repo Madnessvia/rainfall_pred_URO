@@ -2,7 +2,7 @@
 
 General_LSTM.py - Original code, trained on each file separately
 
-General_LSTM_op.py - Optimized code, trained on all files, 365 rows (a page) at a time
+General_LSTM_op.py - Optimized code, trained on all files, 30*365 rows (30 pages) at a time
 
 TODO: Each time we select a random month (30 pages) from all regions ---- DONE
 
