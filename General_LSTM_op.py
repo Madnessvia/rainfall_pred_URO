@@ -10,13 +10,14 @@ import scipy.stats
 from keras import optimizers
 from sklearn.preprocessing import StandardScaler
 from datetime import datetime
+import random
 
 # Parameters
 TargetLabel = 'streamflow_mmd'
 LearningRate = 0.001
 TIME_STEP = 365
 EPOCHs = 75
-BatchSize = 50
+BatchSize = 200
 Patience = 50
 TrainRatio = 0.4
 ValidationRatio = 0.2
@@ -24,14 +25,14 @@ ValidationRatio = 0.2
 # Input columns
 f_columns =['mean_temperature_C', 'precipitation_mmd', 'pet_mmd']
 staticColumns=['area_km2','mean_elevation_m','mean_slope_mkm','shallow_soil_hydc_md','soil_hydc_md','soil_porosity','depth_to_bedrock_m','maximum_water_content_m','bedrock_hydc_md','soil_bedrock_hydc_ratio','mean_precipitation_mmd','mean_pet_mmd','aridity','snow_fraction','seasonality','high_P_freq_daysyear','low_P_freq_daysyear','high_P_dur_day','low_P_dur_day','mean_forest_fraction_percent']
-print(len(staticColumns))
+
 # Input folder (daily csv files)
 # folder = 'Data_Daily_Clustered_based_on_AI_SF_SI/Cluster_' + str(int(cluster)) + '/'
-folder = 'CAMELS-US/Daily_Data/'
+folder = '/home/xlhdesktop/rainfall_pred_URO/CAMELS-US/Daily_Data/'
 
 # Output folder, where we save the results
 # ourputfolder = 'Output_USCA/outputs_with_seasonality_removed_and_p_and_pet_as_inputs/general_model_cluster_'       + str(int(cluster)) +
-outputfolder = 'CAMELS-US/Output_USCA/'
+outputfolder = '/home/xlhdesktop/rainfall_pred_URO/CAMELS-US/Output_USCA/'
 
 if not os.path.exists(outputfolder):
 
@@ -42,7 +43,7 @@ if not os.path.exists(outputfolder):
 SaveModel = outputfolder
 
 #Static Data- it must contain items listed by "staticColumns" and grid code
-path_static = 'CAMELS-US/Attributes//attributes.csv'
+path_static = '/home/xlhdesktop/rainfall_pred_URO/CAMELS-US/Attributes/attributes.csv'
 
 # Read and Normalize statistical features
 dfs = pd.read_csv(path_static)  # Static Data
@@ -96,60 +97,68 @@ def count_files(directory):
     file_count = sum(os.path.isfile(os.path.join(directory, entry)) for entry in entries)
     return file_count
 
-train_size = int(count_files(folder) * TrainRatio)
-val_size = int(count_files(folder) * ValidationRatio)
+train_size = int(count_files(folder) * TrainRatio) * 30
+val_size = int(count_files(folder) * ValidationRatio) * 30
 test_size = train_size
 
 # TraindGridCodes = np.array([])
 TrainedPages = np.array([])
 
-row = 0
+max_days = 14610
+useful_days = max_days - TIME_STEP
+iterations = int(useful_days / 30)
+used_days = {}
 
-while (row < 14610 - 365):
+for iteration in range(iterations):
     iter = 0
     X_train, y_train = [], []
     X_val, y_val = [], []
-    X_test, y_test = [], []
-    print("Currently training row ",row)
+    # X_test, y_test = [], []
+    print(f"Iteration {iteration+1}/{iterations}")
+
     for file in os.listdir(folder):
         GridCode = int(file.rstrip(".csv"))
-        
+        if GridCode not in used_days:
+            used_days[GridCode] = []
+
         Dir = folder + str(file)
         
-        df = pd.read_csv(Dir).dropna()
+        # df = pd.read_csv(Dir).dropna()
+        df = pd.read_csv(Dir).fillna(0)
         df['date'] = pd.to_datetime(df.pop('date'))
-        
         df['day_of_year'] = df['date'].dt.dayofyear
-        
         df[TargetLabel] = np.log1p(df[TargetLabel])
         
-        data = df.iloc[row:row+TIME_STEP].copy()
+        possible_starts = [i for i in range(useful_days) if i not in used_days[GridCode]]
+
+        start_days = random.sample(possible_starts, 30)
+        used_days[GridCode].extend(start_days)
+
+        for start_day in start_days:
+            data = df.iloc[start_day:start_day+TIME_STEP].copy()
+            f_transformer = StandardScaler().fit(data[f_columns])
+            data[f_columns] = f_transformer.transform(data[f_columns])
         
-        f_transformer = StandardScaler().fit(data[f_columns])
-        
-        data[f_columns] = f_transformer.transform(data[f_columns])
-        
-        static_row = dfs[dfs['gridcode'] == GridCode]
-        for item in staticColumns:
-            data.loc[:, item] = static_row[item].to_numpy()[0]
+            static_row = dfs[dfs['gridcode'] == GridCode]
+            for item in staticColumns:
+                data.loc[:, item] = static_row[item].to_numpy()[0]
             
-        input_columns = f_columns + staticColumns
+            input_columns = f_columns + staticColumns
         
-        if iter < train_size:
-            X_train.append(data[input_columns].values)
-            y_train.append(data[TargetLabel].iloc[TIME_STEP-1])
-        elif iter < train_size + val_size:
-            X_val.append(data[input_columns].values)
-            y_val.append(data[TargetLabel].iloc[TIME_STEP-1])
-        else:
-            X_test.append(data[input_columns].values)
-            y_test.append(data[TargetLabel].iloc[TIME_STEP-1])
-            
-        iter += 1
+            if iter < train_size:
+                X_train.append(data[input_columns].values)
+                y_train.append(data[TargetLabel].iloc[TIME_STEP-1])
+            elif iter < train_size + val_size:
+                X_val.append(data[input_columns].values)
+                y_val.append(data[TargetLabel].iloc[TIME_STEP-1])
+            # else:
+                # X_test.append(data[input_columns].values)
+                # y_test.append(data[TargetLabel].iloc[TIME_STEP-1])
+            iter += 1
     
     X_train, y_train = np.array(X_train), np.array(y_train)
     X_val, y_val = np.array(X_val), np.array(y_val)
-    X_test, y_test = np.array(X_test), np.array(y_test)
+    # X_test, y_test = np.array(X_test), np.array(y_test)
     
     history = model.fit(
         X_train, y_train,
@@ -160,11 +169,9 @@ while (row < 14610 - 365):
         callbacks=callbacks
         )
     
-    TrainedPages = np.append(TrainedPages, row)
-    np.savetxt(SaveModel + 'Pages_Based_On_Which_Trained_sofar.out', TrainedPages, delimiter=',')
-    path = SaveModel + 'interationNum_' + str(int(row))+'_Generally_Trained_UP_TO_NOW_Model' + '.h5'
+    # np.savetxt(SaveModel + 'Pages_Based_On_Which_Trained_sofar.out', used_days, delimiter=',')
+    path = SaveModel + 'interationNum_' + str(int(iteration))+'_Generally_Trained_UP_TO_NOW_Model' + '.h5'
     model.save_weights(path)
-    row += 1
     
 path = SaveModel + 'Generally_Trained_Model' +'.h5'
 model.save_weights(path)
