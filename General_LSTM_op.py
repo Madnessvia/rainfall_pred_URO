@@ -11,6 +11,7 @@ from keras import optimizers
 from sklearn.preprocessing import StandardScaler
 from datetime import datetime
 import random
+import json
 
 # Parameters
 TargetLabel = 'streamflow_mmd'
@@ -28,11 +29,11 @@ staticColumns=['area_km2','mean_elevation_m','mean_slope_mkm','shallow_soil_hydc
 
 # Input folder (daily csv files)
 # folder = 'Data_Daily_Clustered_based_on_AI_SF_SI/Cluster_' + str(int(cluster)) + '/'
-folder = '/home/xlhdesktop/rainfall_pred_URO/CAMELS-US/Daily_Data/'
+folder = 'CAMELS-US/Daily_Data/'
 
 # Output folder, where we save the results
 # ourputfolder = 'Output_USCA/outputs_with_seasonality_removed_and_p_and_pet_as_inputs/general_model_cluster_'       + str(int(cluster)) +
-outputfolder = '/home/xlhdesktop/rainfall_pred_URO/CAMELS-US/Output_USCA/'
+outputfolder = 'CAMELS-US/Output_USCA/'
 
 if not os.path.exists(outputfolder):
 
@@ -43,7 +44,7 @@ if not os.path.exists(outputfolder):
 SaveModel = outputfolder
 
 #Static Data- it must contain items listed by "staticColumns" and grid code
-path_static = '/home/xlhdesktop/rainfall_pred_URO/CAMELS-US/Attributes/attributes.csv'
+path_static = 'CAMELS-US/Attributes/attributes.csv'
 
 # Read and Normalize statistical features
 dfs = pd.read_csv(path_static)  # Static Data
@@ -76,6 +77,17 @@ def create_dataset(X, y, date_df, doy_df, time_steps=1):
 def NSE(targets,predictions):
   return 1-(np.sum((targets-predictions)**2)/np.sum((targets-np.mean(targets))**2))
 
+def load_data(file_path):
+    if os.path.exists(file_path):
+        with open(file_path,'r') as f:
+            return json.load(f)
+    else:
+        return {}
+    
+def update_data(file_path, updates):
+    data = load_data(file_path)
+    data.update(updates)
+    w
 # model definition
 model = keras.Sequential()
 # model.add(keras.layers.LSTM(units=256, return_sequences=False, input_shape=(TIME_STEP, X_train.shape[2])))
@@ -97,8 +109,10 @@ def count_files(directory):
     file_count = sum(os.path.isfile(os.path.join(directory, entry)) for entry in entries)
     return file_count
 
-train_size = int(count_files(folder) * TrainRatio) * 30
-val_size = int(count_files(folder) * ValidationRatio) * 30
+# train_size = int(count_files(folder) * TrainRatio) * 30
+# val_size = int(count_files(folder) * ValidationRatio) * 30
+train_size = 10000
+val_size = 5000
 test_size = train_size
 
 # TraindGridCodes = np.array([])
@@ -107,7 +121,8 @@ TrainedPages = np.array([])
 max_days = 14610
 useful_days = max_days - TIME_STEP
 iterations = int(useful_days / 30)
-used_days = {}
+with open('used_days.json', 'r') as f:
+    used_days = json.load(f)
 
 for iteration in range(iterations):
     iter = 0
@@ -124,7 +139,7 @@ for iteration in range(iterations):
         Dir = folder + str(file)
         
         # df = pd.read_csv(Dir).dropna()
-        df = pd.read_csv(Dir).fillna(0)
+        df = pd.read_csv(Dir)
         df['date'] = pd.to_datetime(df.pop('date'))
         df['day_of_year'] = df['date'].dt.dayofyear
         df[TargetLabel] = np.log1p(df[TargetLabel])
@@ -133,6 +148,8 @@ for iteration in range(iterations):
 
         start_days = random.sample(possible_starts, 30)
         used_days[GridCode].extend(start_days)
+        with open('used_days.json', 'w') as f:
+            json.dump(used_days, f)
 
         for start_day in start_days:
             data = df.iloc[start_day:start_day+TIME_STEP].copy()
@@ -146,12 +163,15 @@ for iteration in range(iterations):
             input_columns = f_columns + staticColumns
         
             if iter < train_size:
-                X_train.append(data[input_columns].values)
-                y_train.append(data[TargetLabel].iloc[TIME_STEP-1])
+                if not data.isnull().values.any() and not pd.isnull(data[TargetLabel].iloc[TIME_STEP-1]):
+                    X_train.append(data[input_columns].values)
+                    y_train.append(data[TargetLabel].iloc[TIME_STEP-1])
             elif iter < train_size + val_size:
-                X_val.append(data[input_columns].values)
-                y_val.append(data[TargetLabel].iloc[TIME_STEP-1])
-            # else:
+                if not data.isnull().values.any() and not pd.isnull(data[TargetLabel].iloc[TIME_STEP-1]):
+                    X_val.append(data[input_columns].values)
+                    y_val.append(data[TargetLabel].iloc[TIME_STEP-1])
+            else:
+                break
                 # X_test.append(data[input_columns].values)
                 # y_test.append(data[TargetLabel].iloc[TIME_STEP-1])
             iter += 1
