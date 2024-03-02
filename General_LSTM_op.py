@@ -77,17 +77,17 @@ def create_dataset(X, y, date_df, doy_df, time_steps=1):
 def NSE(targets,predictions):
   return 1-(np.sum((targets-predictions)**2)/np.sum((targets-np.mean(targets))**2))
 
-def load_data(file_path):
-    if os.path.exists(file_path):
-        with open(file_path,'r') as f:
-            return json.load(f)
-    else:
-        return {}
+# def load_data(file_path):
+#     if os.path.exists(file_path):
+#         with open(file_path,'r') as f:
+#             return json.load(f)
+#     else:
+#         return {}
     
-def update_data(file_path, updates):
-    data = load_data(file_path)
-    data.update(updates)
-    w
+# def update_data(file_path, updates):
+#     data = load_data(file_path)
+#     data.update(updates)
+#     w
 # model definition
 model = keras.Sequential()
 # model.add(keras.layers.LSTM(units=256, return_sequences=False, input_shape=(TIME_STEP, X_train.shape[2])))
@@ -121,19 +121,35 @@ TrainedPages = np.array([])
 max_days = 14610
 useful_days = max_days - TIME_STEP
 iterations = int(useful_days / 30)
-with open('used_days.json', 'r') as f:
-    used_days = json.load(f)
 
-for iteration in range(iterations):
+file_path = 'used_days.json'
+
+
+if os.path.exists(file_path):
+    with open(file_path, 'r') as file:
+        used_days = json.load(file)
+        
+    print("JSON file already exists and read into RAM")
+else:
+    used_days = {}
+        
+    print("JSON file created for the first time")
+    
+total_used_days = sum(len(lst) for lst in used_days.values())
+print(total_used_days)
+print(len(used_days.keys()))
+iteration = int(total_used_days / (len(used_days.keys()) * 30 - 1))
+while (iteration < iterations):
     iter = 0
     X_train, y_train = [], []
     X_val, y_val = [], []
     # X_test, y_test = [], []
     print(f"Iteration {iteration+1}/{iterations}")
-
+    iteration += 1
+    
     for file in os.listdir(folder):
         GridCode = int(file.rstrip(".csv"))
-        if GridCode not in used_days:
+        if GridCode not in used_days.keys():
             used_days[GridCode] = []
 
         Dir = folder + str(file)
@@ -148,7 +164,7 @@ for iteration in range(iterations):
 
         start_days = random.sample(possible_starts, 30)
         used_days[GridCode].extend(start_days)
-        with open('used_days.json', 'w') as f:
+        with open(file_path, 'w') as f:
             json.dump(used_days, f)
 
         for start_day in start_days:
