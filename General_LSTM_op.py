@@ -99,7 +99,7 @@ useful_days = max_days - TIME_STEP
 iterations = int(useful_days / 30)
 
 # Global data structure to store trained data
-file_path = 'used_days.json'
+file_path = 'CAMELS-US/Output_USCA/used_days.json'
 if os.path.exists(file_path):
     with open(file_path, 'r') as file:
         used_days = json.load(file)
