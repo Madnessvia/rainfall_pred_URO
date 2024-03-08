@@ -55,7 +55,7 @@ dfs.loc[:, OurDesiredStaticAttributes] = f_transformer.transform(
   dfs[OurDesiredStaticAttributes].to_numpy()
 )
 dftemp = pd.read_csv(path_static)
-dfs['gridcode'] = dftemp['gridcode']
+dfs['gridcode'] = dftemp['gridcode'].astype(str)
 
 # Create Dataset
 def create_dataset(X, y, date_df, doy_df, time_steps=1):
@@ -138,7 +138,7 @@ else:
 total_used_days = sum(len(lst) for lst in used_days.values())
 print(total_used_days)
 print(len(used_days.keys()))
-iteration = int(total_used_days / (len(used_days.keys()) * 30 - 1))
+iteration = int(total_used_days / (len(used_days.keys()) * 30))
 while (iteration < iterations):
     iter = 0
     X_train, y_train = [], []
@@ -148,7 +148,7 @@ while (iteration < iterations):
     iteration += 1
     
     for file in os.listdir(folder):
-        GridCode = int(file.rstrip(".csv"))
+        GridCode = file.rstrip(".csv")
         if GridCode not in used_days.keys():
             used_days[GridCode] = []
 
