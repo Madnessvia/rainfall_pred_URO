@@ -28,18 +28,14 @@ f_columns =['mean_temperature_C', 'precipitation_mmd', 'pet_mmd']
 staticColumns=['area_km2','mean_elevation_m','mean_slope_mkm','shallow_soil_hydc_md','soil_hydc_md','soil_porosity','depth_to_bedrock_m','maximum_water_content_m','bedrock_hydc_md','soil_bedrock_hydc_ratio','mean_precipitation_mmd','mean_pet_mmd','aridity','snow_fraction','seasonality','high_P_freq_daysyear','low_P_freq_daysyear','high_P_dur_day','low_P_dur_day','mean_forest_fraction_percent']
 
 # Input folder (daily csv files)
-# folder = 'Data_Daily_Clustered_based_on_AI_SF_SI/Cluster_' + str(int(cluster)) + '/'
 folder = 'CAMELS-US/Daily_Data/'
 
 # Output folder, where we save the results
-# ourputfolder = 'Output_USCA/outputs_with_seasonality_removed_and_p_and_pet_as_inputs/general_model_cluster_'       + str(int(cluster)) +
 outputfolder = 'CAMELS-US/Output_USCA/'
 
 if not os.path.exists(outputfolder):
-
     os.makedirs(outputfolder)
     print('Oops! directory did not exist, but no worries, I created it!')
-
 
 SaveModel = outputfolder
 
@@ -77,33 +73,15 @@ def create_dataset(X, y, date_df, doy_df, time_steps=1):
 def NSE(targets,predictions):
   return 1-(np.sum((targets-predictions)**2)/np.sum((targets-np.mean(targets))**2))
 
-# def load_data(file_path):
-#     if os.path.exists(file_path):
-#         with open(file_path,'r') as f:
-#             return json.load(f)
-#     else:
-#         return {}
-    
-# def update_data(file_path, updates):
-#     data = load_data(file_path)
-#     data.update(updates)
-#     w
 # model definition
 model = keras.Sequential()
-# model.add(keras.layers.LSTM(units=256, return_sequences=False, input_shape=(TIME_STEP, X_train.shape[2])))
-model.add(keras.layers.LSTM(units=256, return_sequences=False, input_shape=(TIME_STEP, 23)))
+model.add(keras.layers.LSTM(units=256, return_sequences=False, input_shape=(TIME_STEP, len(f_columns) + len(staticColumns))))
 model.add(keras.layers.Dropout(rate=0.4))
 model.add(keras.layers.Dense(units=1))
-
 callbacks = [keras.callbacks.EarlyStopping(patience=Patience, restore_best_weights=True)]
-
 model.compile(loss='mean_squared_error', optimizer=optimizers.Adam(learning_rate=LearningRate))     # compile a model based on MSE
 
-# all_X_train, all_y_train = [], []
-# all_X_train_val, all_y_train_val = [], []
-# all_X_test, all_y_test = [], []
-# all_X_val, all_y_val = [], []
-
+# count number of files
 def count_files(directory):
     entries = os.listdir(directory)
     file_count = sum(os.path.isfile(os.path.join(directory, entry)) for entry in entries)
@@ -115,37 +93,43 @@ train_size = 10000
 val_size = 5000
 test_size = train_size
 
-# TraindGridCodes = np.array([])
-TrainedPages = np.array([])
-
+# number of rows in each file
 max_days = 14610
 useful_days = max_days - TIME_STEP
 iterations = int(useful_days / 30)
 
+# Global data structure to store trained data
 file_path = 'used_days.json'
-
-
 if os.path.exists(file_path):
     with open(file_path, 'r') as file:
         used_days = json.load(file)
-        
     print("JSON file already exists and read into RAM")
 else:
     used_days = {}
-        
     print("JSON file created for the first time")
-    
-total_used_days = sum(len(lst) for lst in used_days.values())
-print(total_used_days)
-print(len(used_days.keys()))
-iteration = int(total_used_days / (len(used_days.keys()) * 30))
-while (iteration < iterations):
+
+
+# total_used_days = sum(len(lst) for lst in used_days.values())
+# iteration = int(total_used_days / (len(used_days.keys()) * 30))
+
+h5_files = [f for f in os.listdir(SaveModel) if f.endswith('.h5')]
+if h5_files:
+    h5_files.sort(key=lambda x: int(x.split('_')[1]), reverse=True)
+    latest_h5_file = os.path.join(SaveModel, h5_files[0])
+    iteration = int(h5_files[0].split('_')[1]) + 1
+    model.load_weights(latest_h5_file)
+    print(f"Loaded weights from {latest_h5_file}")
+else:
+    iteration = 1
+    print("No .h5 files found, starting training from scratch.")
+
+
+while (iteration <= iterations):
     iter = 0
     X_train, y_train = [], []
     X_val, y_val = [], []
     # X_test, y_test = [], []
-    print(f"Iteration {iteration+1}/{iterations}")
-    iteration += 1
+    print(f"Iteration {iteration}/{iterations}")
     
     for file in os.listdir(folder):
         GridCode = file.rstrip(".csv")
@@ -153,8 +137,6 @@ while (iteration < iterations):
             used_days[GridCode] = []
 
         Dir = folder + str(file)
-        
-        # df = pd.read_csv(Dir).dropna()
         df = pd.read_csv(Dir)
         df['date'] = pd.to_datetime(df.pop('date'))
         df['day_of_year'] = df['date'].dt.dayofyear
@@ -164,8 +146,6 @@ while (iteration < iterations):
 
         start_days = random.sample(possible_starts, 30)
         used_days[GridCode].extend(start_days)
-        with open(file_path, 'w') as f:
-            json.dump(used_days, f)
 
         for start_day in start_days:
             data = df.iloc[start_day:start_day+TIME_STEP].copy()
@@ -205,9 +185,14 @@ while (iteration < iterations):
         callbacks=callbacks
         )
     
+    with open(file_path, 'w') as f:
+        json.dump(used_days, f)
+
     # np.savetxt(SaveModel + 'Pages_Based_On_Which_Trained_sofar.out', used_days, delimiter=',')
     path = SaveModel + 'interationNum_' + str(int(iteration))+'_Generally_Trained_UP_TO_NOW_Model' + '.h5'
     model.save_weights(path)
+
+    iteration += 1
     
 path = SaveModel + 'Generally_Trained_Model' +'.h5'
 model.save_weights(path)
