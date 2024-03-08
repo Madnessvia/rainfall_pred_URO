@@ -87,10 +87,10 @@ def count_files(directory):
     file_count = sum(os.path.isfile(os.path.join(directory, entry)) for entry in entries)
     return file_count
 
-# train_size = int(count_files(folder) * TrainRatio) * 30
-# val_size = int(count_files(folder) * ValidationRatio) * 30
-train_size = 10000
-val_size = 5000
+train_size = int(count_files(folder) * TrainRatio) * 30
+val_size = int(count_files(folder) * ValidationRatio) * 30
+# train_size = 10000
+# val_size = 5000
 test_size = train_size
 
 # number of rows in each file
