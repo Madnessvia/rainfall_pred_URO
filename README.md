@@ -4,7 +4,8 @@ General_LSTM.py - Original code, trained on each file separately
 
 General_LSTM_op.py - Optimized code, trained on all files, 30*365 rows (30 pages) at a time
 
-TODO: Each time we select a random month (30 pages) from all regions ---- DONE
+The training can be terminated and restarted. It reads the trained pages and select from pages that are not yet trained. It also loads the weights from the last training iteration into the model if restarted.
 
-TODO: Modify code to adapt `create_dataset` function; cap the maximum pages in training (prob 10k, `batchsize=200`, 50 batches); store the trained pages global data structure somewhere
-
+TODO: 
+1. Read all files into RAM before training
+2. Testing the model
