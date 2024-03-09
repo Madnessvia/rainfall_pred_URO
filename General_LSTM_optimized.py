@@ -87,8 +87,9 @@ def count_files(directory):
     file_count = sum(os.path.isfile(os.path.join(directory, entry)) for entry in entries)
     return file_count
 
-train_size = int(count_files(folder) * TrainRatio) * 30
-val_size = int(count_files(folder) * ValidationRatio) * 30
+num_pages = 30
+train_size = int(count_files(folder) * TrainRatio) * num_pages
+val_size = int(count_files(folder) * ValidationRatio) * num_pages
 # train_size = 10000
 # val_size = 5000
 test_size = train_size
@@ -96,7 +97,7 @@ test_size = train_size
 # number of rows in each file
 max_days = 14610
 useful_days = max_days - TIME_STEP
-iterations = int(useful_days / 30)
+iterations = int(useful_days / num_pages)
 
 # Global data structure to store trained data
 file_path = 'CAMELS-US/Output_USCA/used_days.json'
@@ -148,7 +149,7 @@ while (iteration <= iterations):
         
         possible_starts = [i for i in range(useful_days) if i not in used_days[GridCode]]
 
-        start_days = random.sample(possible_starts, 30)
+        start_days = random.sample(possible_starts, num_pages)
         used_days[GridCode].extend(start_days)
 
         for start_day in start_days:
