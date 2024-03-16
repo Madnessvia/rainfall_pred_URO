@@ -148,12 +148,12 @@ while (iteration <= iterations):
         df['day_of_year'] = df['date'].dt.dayofyear
         df[TargetLabel] = np.log1p(df[TargetLabel])
         
-        possible_train_months = [i for i in range(int(useful_months[GridCode] * TrainRatio)) if i not in used_months[GridCode]]
-        possible_val_months = [i for i in range(int(useful_months[GridCode] * TrainRatio), int(useful_months[GridCode] * TrainRatio + useful_months[GridCode] * ValidationRatio)) if i not in used_months[GridCode]]
+        possible_train_months = [i+1 for i in range(int(useful_months[GridCode] * TrainRatio)) if i+1 not in used_months[GridCode]]
+        possible_val_months = [i+1 for i in range(int(useful_months[GridCode] * TrainRatio), int(useful_months[GridCode] * TrainRatio + useful_months[GridCode] * ValidationRatio)) if i+1 not in used_months[GridCode]]
         selected_train_months = random.sample(possible_train_months, num_train_months)
         selected_val_months = random.sample(possible_val_months, num_val_months)
         selected_months = selected_train_months + selected_val_months
-        
+
         for selected_month in selected_months:
             selected_year = int(selected_month / 12) + int(df['year'][0])
             selected_year_month = 12 if selected_month % 12 == 0 else selected_month % 12
@@ -190,9 +190,11 @@ while (iteration <= iterations):
                 y_val.extend(y)
                 
             iter += 1
-    
+
     X_train, y_train = np.array(X_train), np.array(y_train)
     X_val, y_val = np.array(X_val), np.array(y_val)
+    print(X_train.shape, y_train.shape)
+    print(X_val.shape, y_val.shape)
     # X_test, y_test = np.array(X_test), np.array(y_test)
     
     history = model.fit(
