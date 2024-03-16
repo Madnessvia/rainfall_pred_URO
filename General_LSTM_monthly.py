@@ -130,7 +130,6 @@ num_val_months = 1
 iterations = int(188 / num_train_months)
 
 while (iteration <= iterations):
-    iter = 0
     X_train, y_train = [], []
     X_val, y_val = [], []
     # X_test, y_test = [], []
@@ -185,13 +184,11 @@ while (iteration <= iterations):
             elif selected_month in selected_val_months:
                 X_val.extend(X)
                 y_val.extend(y)
-                
-            iter += 1
 
     X_train, y_train = np.array(X_train), np.array(y_train)
     X_val, y_val = np.array(X_val), np.array(y_val)
-    print(X_train.shape, y_train.shape)
-    print(X_val.shape, y_val.shape)
+    # print(X_train.shape, y_train.shape)
+    # print(X_val.shape, y_val.shape)
     # X_test, y_test = np.array(X_test), np.array(y_test)
     
     history = model.fit(
