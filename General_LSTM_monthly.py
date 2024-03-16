@@ -124,12 +124,13 @@ for file in os.listdir(folder):
     useful_months[filename] = all_files[filename]['date'].dt.to_period('M').nunique() - 12
     
 
-num_months = 2
+num_train_months = 2
+num_val_months = 1
 
-train_size = int(count_files(folder) * TrainRatio) * num_months
-val_size = int(count_files(folder) * ValidationRatio) * num_months
+train_size = int(count_files(folder) * TrainRatio) * num_train_months
+val_size = int(count_files(folder) * ValidationRatio) * num_val_months
 test_size = train_size
-iterations = int(468 / num_months)
+iterations = int(468 / num_train_months)
 
 while (iteration <= iterations):
     iter = 0
@@ -147,9 +148,11 @@ while (iteration <= iterations):
         df['day_of_year'] = df['date'].dt.dayofyear
         df[TargetLabel] = np.log1p(df[TargetLabel])
         
-        possible_months = [i for i in range(useful_months[GridCode]) if i not in used_months[GridCode]]
-
-        selected_months = random.sample(possible_months, num_months)
+        possible_train_months = [i for i in range(int(useful_months[GridCode] * TrainRatio)) if i not in used_months[GridCode]]
+        possible_val_months = [i for i in range(int(useful_months[GridCode] * TrainRatio), int(useful_months[GridCode] * TrainRatio + useful_months[GridCode] * ValidationRatio)) if i not in used_months[GridCode]]
+        selected_train_months = random.sample(possible_train_months, num_train_months)
+        selected_val_months = random.sample(possible_val_months, num_val_months)
+        selected_months = selected_train_months + selected_val_months
         
         for selected_month in selected_months:
             selected_year = int(selected_month / 12) + int(df['year'][0])
@@ -179,10 +182,10 @@ while (iteration <= iterations):
             input_columns = f_columns + staticColumns
             X, y, train_date, train_days = create_dataset(monthly_pages_df[input_columns], monthly_pages_df[TargetLabel], monthly_pages_df['date'], monthly_pages_df['day_of_year'], time_steps=TIME_STEP)
         
-            if iter < train_size:
+            if selected_month in selected_train_months:
                 X_train.extend(X)
                 y_train.extend(y)
-            elif iter < train_size + val_size:
+            elif selected_month in selected_val_months:
                 X_val.extend(X)
                 y_val.extend(y)
                 
