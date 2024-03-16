@@ -101,7 +101,7 @@ else:
     used_months = {}
     print("JSON file created for the first time")
     
-    
+# Load weights if restart training
 h5_files = [f for f in os.listdir(SaveModel) if f.endswith('.h5')]
 if h5_files:
     h5_files.sort(key=lambda x: int(x.split('_')[1]), reverse=True)
@@ -112,8 +112,11 @@ if h5_files:
 else:
     iteration = 1
     print("No .h5 files found, starting training from scratch.")
-    
-useful_months = {}
+
+
+useful_months = {}  # Store the usable months: total months - 12
+
+# Read all csv files into RAM as dataframe
 all_files = {}
 for file in os.listdir(folder):
     filename = file.rstrip(".csv")
@@ -123,58 +126,66 @@ for file in os.listdir(folder):
     all_files[filename]['date'] = pd.to_datetime(all_files[filename].pop('date'))
     useful_months[filename] = all_files[filename]['date'].dt.to_period('M').nunique() - 12
     
-
+# Change based on RAM usage, num_train_months : num_val_months = 2 : 1
 num_train_months = 2
 num_val_months = 1
 
+# Change based on the number of useful months needed for training
 iterations = int(187 / num_train_months)
 
+# Training loop
 while (iteration <= iterations):
     X_train, y_train = [], []
     X_val, y_val = [], []
     # X_test, y_test = [], []
     print(f"Iteration {iteration}/{iterations}")
     
+    # Iterate over all the files
     for GridCode in all_files.keys():
         if GridCode not in used_months.keys():
             used_months[GridCode] = []
 
+        # Grab one file based on GridCode
         df = all_files[GridCode].copy()
         df['year'] = df['date'].dt.year
         df['day_of_year'] = df['date'].dt.dayofyear
         df[TargetLabel] = np.log1p(df[TargetLabel])
         
+        # Randomly select `num_train_months + num_val_months` months
         possible_train_months = [i+1 for i in range(int(useful_months[GridCode] * TrainRatio)) if i+1 not in used_months[GridCode]]
         possible_val_months = [i+1 for i in range(int(useful_months[GridCode] * TrainRatio), int(useful_months[GridCode] * TrainRatio + useful_months[GridCode] * ValidationRatio)) if i+1 not in used_months[GridCode]]
         selected_train_months = random.sample(possible_train_months, num_train_months)
         selected_val_months = random.sample(possible_val_months, num_val_months)
         selected_months = selected_train_months + selected_val_months
 
+        # For each month in a file, filter the corresponding pages
         for selected_month in selected_months:
             selected_year = int(selected_month / 12) + int(df['year'][0])
             selected_year_month = 12 if selected_month % 12 == 0 else selected_month % 12
             
+            # Different months have different number of pages
             if selected_year_month in [1, 3, 5, 7, 8, 10, 12]:
                 end_date_of_month = 31
-            elif selected_year_month == 2:
+            elif selected_year_month == 2: # For simplicity we don't consider leep year, this only loses 1page/4years data
                 end_date_of_month = 28
             else:
                 end_date_of_month = 30
                 
             used_months[GridCode].append(selected_month)
             
+            # Filtering the month region from file
             start_date = pd.Timestamp(year=selected_year, month=selected_year_month, day=1)
             end_date = pd.Timestamp(year=selected_year + 1, month=selected_year_month, day=end_date_of_month)
-
             monthly_pages_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)].copy()
 
+            # Input processing
             f_transformer = StandardScaler().fit(monthly_pages_df[f_columns])
             monthly_pages_df[f_columns] = f_transformer.transform(monthly_pages_df[f_columns])
-
             static_row = dfs[dfs['gridcode'] == GridCode]
             for item in staticColumns:
                 monthly_pages_df.loc[:, item] = static_row[item].to_numpy()[0]
 
+            # Creating pages for month
             input_columns = f_columns + staticColumns
             X, y, train_date, train_days = create_dataset(monthly_pages_df[input_columns], monthly_pages_df[TargetLabel], monthly_pages_df['date'], monthly_pages_df['day_of_year'], time_steps=TIME_STEP)
         
