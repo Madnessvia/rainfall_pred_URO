@@ -127,7 +127,7 @@ for file in os.listdir(folder):
 num_train_months = 2
 num_val_months = 1
 
-iterations = int(188 / num_train_months)
+iterations = int(187 / num_train_months)
 
 while (iteration <= iterations):
     X_train, y_train = [], []
