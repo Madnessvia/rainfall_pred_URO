@@ -127,10 +127,7 @@ for file in os.listdir(folder):
 num_train_months = 2
 num_val_months = 1
 
-train_size = int(count_files(folder) * TrainRatio) * num_train_months
-val_size = int(count_files(folder) * ValidationRatio) * num_val_months
-test_size = train_size
-iterations = int(468 / num_train_months)
+iterations = int(188 / num_train_months)
 
 while (iteration <= iterations):
     iter = 0
