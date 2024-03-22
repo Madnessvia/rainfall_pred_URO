@@ -130,6 +130,7 @@ for file in os.listdir(folder):
 num_train_months = 2
 num_val_months = 1
 
+num_batches = 5
 # Change based on the number of useful months needed for training
 iterations = int(187 / num_train_months)
 
@@ -201,16 +202,40 @@ while (iteration <= iterations):
     # print(X_train.shape, y_train.shape)
     # print(X_val.shape, y_val.shape)
     # X_test, y_test = np.array(X_test), np.array(y_test)
-    
-    history = model.fit(
-        X_train, y_train,
-        epochs=EPOCHs,
-        batch_size=BatchSize,
-        validation_data=(X_val, y_val),
-        shuffle=True,
-        callbacks=callbacks
-        )
-    
+
+    indices_train = np.arange(X_train.shape[0])
+    indices_val = np.arange(X_val.shape[0])
+    np.random.shuffle(indices_train)
+    np.random.shuffle(indices_val)
+
+    X_train = X_train[indices_train]
+    y_train = y_train[indices_train]
+    X_val = X_val[indices_val]
+    y_val = y_val[indices_val]
+
+    X_train_batches = np.array_split(X_train, num_batches)
+    y_train_batches = np.array_split(y_train, num_batches)
+    X_val_batches = np.array_split(X_val, num_batches)
+    y_val_batches = np.array_split(y_val, num_batches)
+
+    for X_train_batch, y_train_batch, X_val_batch, y_val_batch in zip(X_train_batches, y_train_batches, X_val_batches, y_val_batches):
+        history = model.fit(
+            X_train_batch, y_train_batch,
+            epochs=EPOCHs,
+            batch_size=BatchSize,
+            validation_data=(X_val_batch, y_val_batch),
+            shuffle=True,
+            callbacks=callbacks
+            )
+
+    # history = model.fit(
+    #         X_train, y_train,
+    #         epochs=EPOCHs,
+    #         batch_size=BatchSize,
+    #         validation_data=(X_val, y_val),
+    #         shuffle=True,
+    #         callbacks=callbacks
+    #         )
     with open(file_path, 'w') as f:
         json.dump(used_months, f)
 
