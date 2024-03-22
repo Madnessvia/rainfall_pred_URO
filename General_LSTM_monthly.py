@@ -15,10 +15,10 @@ import json
 
 # Parameters
 TargetLabel = 'streamflow_mmd'
-LearningRate = 0.001
+LearningRate = 0.001 # 0.0001
 TIME_STEP = 365
 EPOCHs = 75
-BatchSize = 200
+BatchSize = 200 # 128/256/512/1024
 Patience = 50
 TrainRatio = 0.4
 ValidationRatio = 0.2
@@ -130,7 +130,9 @@ for file in os.listdir(folder):
 num_train_months = 2
 num_val_months = 1
 
+# 6k/12k pages
 num_batches = 5
+
 # Change based on the number of useful months needed for training
 iterations = int(187 / num_train_months)
 
