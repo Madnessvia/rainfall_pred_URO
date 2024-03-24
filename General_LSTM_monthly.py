@@ -12,6 +12,7 @@ from datetime import datetime
 import random
 import json
 
+start_time = datetime.now()
 
 # Parameters
 TargetLabel = 'streamflow_mmd'
@@ -131,10 +132,13 @@ num_train_months = 2
 num_val_months = 1
 
 # 6k/12k pages
-num_batches = 5
+num_batches = 1
 
 # Change based on the number of useful months needed for training
 iterations = int(187 / num_train_months)
+
+samples_df = pd.read_csv('80_Samples.csv', header=None, dtype=str)
+samples_list = samples_df[0].tolist()
 
 # Training loop
 while (iteration <= iterations):
@@ -144,7 +148,8 @@ while (iteration <= iterations):
     print(f"Iteration {iteration}/{iterations}")
     
     # Iterate over all the files
-    for GridCode in all_files.keys():
+    # for GridCode in all_files.keys():
+    for GridCode in samples_list:
         if GridCode not in used_months.keys():
             used_months[GridCode] = []
 
@@ -249,3 +254,9 @@ while (iteration <= iterations):
     
 path = SaveModel + 'Generally_Trained_Model' +'.h5'
 model.save_weights(path)
+
+end_time = datetime.now()
+duration = end_time - start_time
+print(f"Model started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"Model finished at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"Total duration: {duration}")
